@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "name": "YT Shorts AutoScroll",
+  "version": "2.0",
+  "description": "Automatically scrolls YouTube Shorts. Togglable with a button. Disables while comment section is open and re-enables when closed",
+  "permissions": ["tabs", "storage", "activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["autoScroll.js"]
+    }
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "browser_action": {
+    "default_title": "YT Shorts AutoScroll"
+  }
+}
