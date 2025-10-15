@@ -16,9 +16,9 @@ Automatically scrolls YouTube Shorts. You can toggle it on/off with a button. Th
 2. Click **Load Temporary Add-on**.
 3. Select the `manifest.json` from this repository.
 
-### Firefox (After Mozilla Review)
+### Firefox
 
-- Will be available on [Firefox Add-ons](https://addons.mozilla.org) once approved.
+https://addons.mozilla.org/en-US/firefox/addon/yt-shorts-autoscroll/
 
 ## Usage
 
