@@ -1,11 +1,3 @@
-// ==UserScript==
-// @name         YT Shorts AutoScroll
-// @namespace    http://tampermonkey.net/
-// @version      2.0
-// @match        *://*.youtube.com/*
-// @grant        none
-// ==/UserScript==
-
 (function () {
     'use strict';
 
@@ -67,41 +59,65 @@
     function attachVideoHandlers(v) {
         detachVideoHandlers();
         if (!v) return;
+
         video = v;
         video.loop = false;
-        handlers.ended = nearEndHandler;
-        handlers.timeupdate = () => {
-            if (video.duration > 0 && video.currentTime >= video.duration - 0.5) nearEndHandler();
-        };
-        handlers.seeked = () => {
-            if (video.duration > 0 && video.currentTime >= video.duration - 0.5) nearEndHandler();
-        };
+
+        const triggerThreshold = 0.25;
+        let hasTriggeredNearEnd = false;
+
+        function tryTriggerNearEnd() {
+            if (
+                !hasTriggeredNearEnd &&
+                video.duration > 0 &&
+                (video.ended || video.currentTime >= video.duration - triggerThreshold)
+            ) {
+                hasTriggeredNearEnd = true;
+                nearEndHandler();
+            }
+        }
+
+        handlers.ended = tryTriggerNearEnd;
+        handlers.timeupdate = tryTriggerNearEnd;
+        handlers.seeked = tryTriggerNearEnd;
+
         video.addEventListener('ended', handlers.ended);
         video.addEventListener('timeupdate', handlers.timeupdate);
         video.addEventListener('seeked', handlers.seeked);
 
+        video.addEventListener('play', () => {
+            hasTriggeredNearEnd = false;
+        });
+
         const player = safeQ('ytd-player, .html5-video-player');
-        if (player && typeof player.setLoop === 'function') try { player.setLoop(false); } catch {}
+        if (player && typeof player.setLoop === 'function') {
+            try { player.setLoop(false); } catch {}
+        }
+
+        const watchdog = setInterval(() => {
+            if (video && !hasTriggeredNearEnd) tryTriggerNearEnd();
+            else clearInterval(watchdog);
+        }, 200);
     }
 
     function nearEndHandler() {
         if (!isAutoScrollOn || isWaiting || !video) return;
         video.pause();
         isWaiting = true;
-        setTimeout(() => {
-            if (isCommentsSectionOpen()) {
-                wasAutoScrollOnBeforeComments = true;
-                isAutoScrollOn = false;
-                video.loop = true;
-                video.currentTime = 0;
-                video.play().catch(() => {});
-                updateToggleText(toggleTextOff);
-            } else {
-                video.loop = false;
-                goToNextShort();
-            }
-            isWaiting = false;
-        }, 1000);
+
+        if (isCommentsSectionOpen()) {
+            wasAutoScrollOnBeforeComments = true;
+            isAutoScrollOn = false;
+            video.loop = true;
+            video.currentTime = 0;
+            video.play().catch(() => {});
+            updateToggleText(toggleTextOff);
+        } else {
+            video.loop = false;
+            goToNextShort();
+        }
+
+        isWaiting = false;
     }
 
     function ensureToggleButton() {
@@ -249,9 +265,17 @@
     function onLeaveShorts() {
         const wrap = document.getElementById('autoScrollToggleWrap');
         if (wrap) wrap.remove();
+
         if (commentObserver) { commentObserver.disconnect(); commentObserver = null; }
         if (videoElementObserver) { videoElementObserver.disconnect(); videoElementObserver = null; }
+
+        isAutoScrollOn = false;
+        wasAutoScrollOnBeforeComments = false;
+        isWaiting = false;
         detachVideoHandlers();
+        video = null;
+        handlers = {};
+        updateToggleText(toggleTextOff);
     }
 
     function setupLocationWatcher() {
